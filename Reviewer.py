@@ -8,6 +8,8 @@ import filecmp
 import zipfile
 import wx.animate
 
+from xlwt import Workbook
+
 #*****************************************************************************************************
 #
 #Class to communicate to ADB and CMD
@@ -199,12 +201,12 @@ class About_Panel(wx.Panel):
     def __init__(self, parent):
         wx.Panel.__init__(self, parent=parent)
 
-        img_real = wx.Image('./res_common/Intro.JPG', wx.BITMAP_TYPE_ANY)
+        img_real = wx.Image('./res_common/Intro_New.JPG', wx.BITMAP_TYPE_ANY)
         self.imageCtrl = wx.StaticBitmap(self, wx.ID_ANY, wx.BitmapFromImage(img_real))
         self.imageCtrl.SetBitmap(wx.BitmapFromImage(img_real))
 
-        self.mainSizer = wx.BoxSizer(wx.VERTICAL)
-        self.mainSizer.Add(self.imageCtrl, 0, wx.CENTER)
+        self.mainSizer = wx.BoxSizer(wx.VERTICAL | wx.HORIZONTAL)
+        self.mainSizer.Add(self.imageCtrl, 0, wx.CENTER|wx.VERTICAL)
         self.SetSizerAndFit(self.mainSizer)
     
 
@@ -221,6 +223,7 @@ class MakeCRC_Panel(wx.Panel):
         mainSizer = wx.BoxSizer(wx.VERTICAL)
         grid0 = wx.GridBagSizer(hgap=5, vgap=5)
         grid = wx.GridBagSizer(hgap=10, vgap=10)
+        grid1 = wx.GridBagSizer(hgap=10, vgap=10)        
         grid2 = wx.GridBagSizer(hgap=5, vgap=5)
 
         self.heading = wx.StaticText(self, label="XLS Tool")
@@ -251,13 +254,17 @@ class MakeCRC_Panel(wx.Panel):
         
 
         # Buttons to Select all/MakeCRC/Exit
+        self.clear =wx.Button(self, label="Reset/Clear")
+        self.Bind(wx.EVT_BUTTON, self.OnClear,self.clear)
+        grid1.Add(self.clear, pos=(1,0))
+        
         self.scanthrough =wx.Button(self, label="Scan through...")
         self.Bind(wx.EVT_BUTTON, self.OnScanthrough,self.scanthrough)
-        grid.Add(self.scanthrough, pos=(5,0))
+        grid1.Add(self.scanthrough, pos=(1,2))
 
         self.MAKECRC =wx.Button(self, label="Generate Payroll Sheet")
-        self.Bind(wx.EVT_BUTTON, self.OnMakeCRC,self.MAKECRC)
-        grid.Add(self.MAKECRC, pos=(5,2))
+        self.Bind(wx.EVT_BUTTON, self.OnGenPayrollSheet,self.MAKECRC)
+        grid1.Add(self.MAKECRC, pos=(1,4))
 
 
         gif_fname = './res_common/Progress.gif'
@@ -277,16 +284,20 @@ class MakeCRC_Panel(wx.Panel):
 
         mainSizer.Add(grid0, 0, wx.CENTER)
         mainSizer.Add(grid, 0, wx.CENTER)
+        mainSizer.Add(grid1, 0, wx.CENTER)        
         mainSizer.Add(grid2, 0, wx.CENTER)
         self.SetSizerAndFit(mainSizer)
 
     def EvtComboBox(self, event):
         "test"
 
+    def OnGenPayrollSheet(self, event):
+        "Need to implement"
+    
     def OnBrowse1(self, event):
         "Edit Local_Config.txt file"
         
-        dlg = wx.FileDialog(self, "Choose a file", "c:\\", "", "*.*", wx.FD_OPEN)
+        dlg = wx.FileDialog(self, "Choose a file", "C:\\Python27\\ReviewerV2.1", "", "*.*", wx.FD_OPEN) # Need to remove Hard coding
         if dlg.ShowModal() == wx.ID_OK:
             self.path1 = dlg.GetPath();
             self.Prev_Month_Sheet.WriteText(self.path1);
@@ -295,7 +306,7 @@ class MakeCRC_Panel(wx.Panel):
     def OnBrowse2(self, event):
         "Edit Local_Config.txt file"
         
-        dlg = wx.FileDialog(self, "Choose a file", "c:\\", "", "*.*", wx.FD_OPEN)
+        dlg = wx.FileDialog(self, "Choose a file", "C:\\Python27\\ReviewerV2.1", "", "*.*", wx.FD_OPEN) # Need to remove Hard coding
         if dlg.ShowModal() == wx.ID_OK:
             self.path2 = dlg.GetPath();
             self.Curr_Month_Sheet.WriteText(self.path2);
@@ -309,117 +320,76 @@ class MakeCRC_Panel(wx.Panel):
         if( File1_Presence and File2_Presence):
             self.logger.AppendText("File is Present \n")
             Prev_wb = xlrd.open_workbook(self.path1);
-            Prev_sh = wb.sheet_by_index(0);
+            Prev_sh = Prev_wb.sheet_by_index(0);
             Curr_wb = xlrd.open_workbook(self.path2);
-            Curr_sh = wb.sheet_by_index(0);
-
+            Curr_sh = Curr_wb.sheet_by_index(0);
+            
+            COL_NAME = 2;
+            COL_ACCNO = 9;
+            COL_BASICPAY = 14;
+            COL_NETPAY = 12;
+            
+            Result_book = Workbook();
+            Result_Sheet = Result_book.add_sheet('Result');
+            Res_row = 0;
+            Res_col = 0;
+            Result_Sheet.write(Res_row,0,'Emp ID');
+            Result_Sheet.write(Res_row,1,'Remarks');
+            Res_row = Res_row + 1;
+            
+            for row in range (Curr_sh.nrows):
+                if(row==0 or row==1 or row==2 or row==3 or Curr_sh.cell(row,2).value==""):
+                    continue;
+                Emp_ID = Curr_sh.cell(row,1).value
+                for row1 in range (Prev_sh.nrows):
+                    if(Emp_ID == Prev_sh.cell(row1,1).value):
+                        #name check;
+                        if( Curr_sh.cell(row,COL_NAME).value == Prev_sh.cell(row1,COL_NAME).value):
+                            if( Curr_sh.cell(row,COL_ACCNO).value == Prev_sh.cell(row1,COL_ACCNO).value):
+                                if( Curr_sh.cell(row,COL_NETPAY).value == Prev_sh.cell(row1,COL_NETPAY).value):
+                                    if( Curr_sh.cell(row,COL_BASICPAY).value == Prev_sh.cell(row1,COL_BASICPAY).value):
+                                        break;
+                                    else:
+                                        Result_Sheet.write(Res_row, 0, Emp_ID);
+                                        Result_Sheet.write(Res_row, 1, 'BASIC PAY is Not Matching with last month sheet');
+                                        Res_row = Res_row + 1;                                        
+                                        self.logger.AppendText(Emp_ID + " BASIC PAY is Not Matching with last month sheet. \n");
+                                        break;
+                                else:
+                                    Result_Sheet.write(Res_row, 0, Emp_ID);
+                                    Result_Sheet.write(Res_row, 1, 'NET PAY is Not Matching with last month sheet');
+                                    Res_row = Res_row + 1;                                    
+                                    self.logger.AppendText(Emp_ID + " NET PAY is Not Matching with last month sheet. \n");
+                                    break;
+                            else:
+                                Result_Sheet.write(Res_row, 0, Emp_ID);
+                                Result_Sheet.write(Res_row, 1, 'ACC NO is Not Matching with last month sheet');
+                                Res_row = Res_row + 1;                                
+                                self.logger.AppendText(Emp_ID + " ACC NO is Not Matching with last month sheet. \n");
+                                break;
+                        else:    
+                            Result_Sheet.write(Res_row, 0, Emp_ID);
+                            Result_Sheet.write(Res_row, 1, 'NAME is Not Matching with last month sheet');
+                            Res_row = Res_row + 1;                       
+                            self.logger.AppendText(Emp_ID + " NAME is Not Matching with last month sheet. \n");
+                            break;
+                    else:
+                        if(row1 >= Prev_sh.nrows):
+                            self.logger.AppendText(Emp_ID + " Seems to be New Employee \n");
+                            break;
+                        else:
+                            continue;
+                        
+            Result_book.save('Results.xls');            
+            self.logger.AppendText("DONE \n");
         else:
             self.logger.AppendText("Seems to be one of the input file is missing!!!! Please Check \n")
 
-    def OnSelectAll(self,event):
-        "Function to select all check boxes in single click"
-        self.dbcrc.SetValue(True)
-        self.filecrc.SetValue(True)
-        self.fpricrc.SetValue(True)
-        self.efscrc.SetValue(True)
-        self.fpritest.SetValue(True)
-        self.swreqdoc.SetValue(True)
 
-    def OnMakeCRC(self,event):
-        "This is a function which does everything in single click"
-        SL = '' #Global variable to store SIM LOCK Info
-        NTCODE = '' #Global variable to store NT Code Info
-        #Starts Animation
-        self.gifleft.Show()
-        self.gifright.Show()
-        self.gifleft.Play()
-        self.gifright.Play()
-        self.Layout()
-        #Input Validation
-        if validate_Input(self,'makecrc')==True:
-            # configure the serial connections (the parameters differs on the device you are connecting to)
-            ser = serial.Serial(
-                port=self.edithear.GetValue(),
-                baudrate=9600,
-                parity=serial.PARITY_ODD,
-                stopbits=serial.STOPBITS_TWO,
-                bytesize=serial.SEVENBITS
-            )
-            if ser.isOpen():
-                #system file check
-                if is_SystemFilesPresent("./res_makecrc/", "Local_Config.txt")==True:
-                    LocalConfig = open('./res_makecrc/Local_Config.txt','r')
-                    Lines = LocalConfig.readlines()
-                    LocalConfig.close()
-                    PRXLS_Fname = Lines[0].split('$')[1]
-                    PRXLS_Filename = PRXLS_Fname[0:len(PRXLS_Fname)-1]
-                    #initial Setup
-                    if display_Warning(self)==True:
-
-                        #Filesystem Clean up
-                        do_SystemCleanup(self)
-                        #PR File check
-                        if is_SystemFilesPresent("./res_makecrc/", PRXLS_Filename)==True:
-                            SL = get_ValuefromXLS("./res_makecrc/"+PRXLS_Filename, trim_value(Lines[24].split('$')[1]))
-                            NTCODE = get_ValuefromXLS("./res_makecrc/"+PRXLS_Filename, trim_value(Lines[25].split('$')[1]))
-                        else:
-                            self.logger.AppendText("PR File is missing, Proceeding with User Input\n")
-                            dlg = wx.MessageDialog(self,"Is it SIM LOCK Version?", "Simlock", wx.YES|wx.NO|wx.ICON_QUESTION)
-                            res = dlg.ShowModal()
-                            dlg.Destroy()
-                            if res == wx.ID_YES:
-                                SL = "Yes"
-                            else:
-                                SL = "No"
-
-                            NTcodedefault = NTCODE = "\"0\",\"FFF,FFF,FFFFFFFF,FFFFFFFF,FF\""
-
-                            dlg = wx.TextEntryDialog(self,"Enter the NTCODE to be written", "NTCODE", NTcodedefault ,wx.OK|wx.CENTRE)
-                            res = dlg.ShowModal()
-                            if res == wx.ID_OK:
-                                NTCODE = dlg.GetValue()
-
-                        if write_IDDE(self, ser) == True:
-                            if write_NTCODE(self, ser, NTCODE) == True:
-                                if do_SIMLOCK(self, ser, SL) == True:
-                                    #Execute Core logic
-                                    result = Execute_Core_Logic(self, ser)
-                                    if result == True :
-                                        dlg = wx.MessageDialog(self, "Done", "Result", wx.OK | wx.ICON_INFORMATION )
-                                        dlg.ShowModal()
-                                        dlg.Destroy()
-                                    else:
-                                        Message = "Stopped due to problems. See logs for more details."
-                                        dlg = wx.MessageDialog(self, "Stopped due to problems. See logs for more details.", "Result", wx.OK | wx.ICON_ERROR )
-                                        dlg.ShowModal()
-                                        dlg.Destroy()
-                                    ser.close()
-                                else:
-                                    self.logger.AppendText("Failed in doing SIMLOCK\n")
-                            else:
-                                self.logger.AppendText("Failed in writing NTCODE\n")
-                        else:
-                            self.logger.AppendText("Failed in doing IDDE. Check your HW\n")
-                    else:
-                        self.logger.AppendText("User Cancelled Execution due to lack of initial setup in Hardware\n")
-                else:
-                    self.logger.AppendText("Local_Config.txt file is missing\n")
-                ser.close()
-            else:
-                self.logger.AppendText("Please Check your Port Settings\n")
-            ser.close()
-        else:
-            self.logger.AppendText("Input Validation Failed\n")
-
-        self.gifleft.Stop()
-        self.gifright.Stop()    
-        self.gifleft.Hide()
-        self.gifright.Hide()
-        self.Layout()
-
-    def OnClearLogs(self,event):
-        self.logger.Clear()
-
+    def OnClear(self,event):
+        self.logger.Clear();
+        self.Prev_Month_Sheet.Clear();
+        self.Curr_Month_Sheet.Clear();
 
 #*****************************************************************************************************
 #
