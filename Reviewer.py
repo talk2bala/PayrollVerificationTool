@@ -134,7 +134,7 @@ class Reviewer(wx.Frame):
     "This is a Main Class to display the window"
 
     def __init__(self):
-        wx.Frame.__init__(self, None, wx.ID_ANY, "Payroll Verification Tool", size=(800,600))
+        wx.Frame.__init__(self, None, wx.ID_ANY, "Payroll Verification Tool", size=(700,800))
         #Creating Objects
         self.MakeCRC_Panel = MakeCRC_Panel(self)
         self.SoftReviewer_Panel = SoftReviewer_Panel(self)
@@ -201,7 +201,7 @@ class About_Panel(wx.Panel):
     def __init__(self, parent):
         wx.Panel.__init__(self, parent=parent)
 
-        img_real = wx.Image('./res_common/Intro_New.JPG', wx.BITMAP_TYPE_ANY)
+        img_real = wx.Image('./res_common/Intro.JPG', wx.BITMAP_TYPE_ANY)
         self.imageCtrl = wx.StaticBitmap(self, wx.ID_ANY, wx.BitmapFromImage(img_real))
         self.imageCtrl.SetBitmap(wx.BitmapFromImage(img_real))
 
@@ -225,6 +225,12 @@ class MakeCRC_Panel(wx.Panel):
         grid = wx.GridBagSizer(hgap=10, vgap=10)
         grid1 = wx.GridBagSizer(hgap=10, vgap=10)        
         grid2 = wx.GridBagSizer(hgap=5, vgap=5)
+        grid3 = wx.GridBagSizer(hgap=10, vgap=10)
+
+        comp_logo = wx.Image('./res_common/Comp_Logo.JPG', wx.BITMAP_TYPE_ANY)
+        self.imageLogo = wx.StaticBitmap(self, wx.ID_ANY, wx.BitmapFromImage(comp_logo))
+        self.imageLogo.SetBitmap(wx.BitmapFromImage(comp_logo))
+        grid3.Add(self.imageLogo, pos=(1,1))
 
         self.heading = wx.StaticText(self, label="XLS Tool")
         font = wx.Font(22,wx.DEFAULT, wx.NORMAL, wx.NORMAL, True)
@@ -252,6 +258,11 @@ class MakeCRC_Panel(wx.Panel):
         self.Bind(wx.EVT_BUTTON, self.OnBrowse2,self.button)
         grid.Add(self.button, pos=(3,2))
         
+        # Controls to enter Basic/Net different Limit
+        self.diffLimit = wx.StaticText(self, label="Enter Difference Limit in Basic/Net (in Rs) ")
+        grid.Add(self.diffLimit, pos=(4,0))
+        self.diff_Limit = wx.TextCtrl(self, size=(100,20))
+        grid.Add(self.diff_Limit, pos=(4,1))
 
         # Buttons to Select all/MakeCRC/Exit
         self.clear =wx.Button(self, label="Reset/Clear")
@@ -274,7 +285,7 @@ class MakeCRC_Panel(wx.Panel):
         self.gifleft.Hide()
 
         # A multiline TextCtrl - This is here to show how the events work in this program, don't pay too much attention to it
-        self.logger = wx.TextCtrl(self, size=(600,150), style=wx.TE_MULTILINE | wx.TE_READONLY)
+        self.logger = wx.TextCtrl(self, size=(600,300), style=wx.TE_MULTILINE | wx.TE_READONLY)
         grid2.Add(self.logger, pos=(2,1))
 
         self.gifright = wx.animate.GIFAnimationCtrl(self, -1, gif_fname)
@@ -282,6 +293,7 @@ class MakeCRC_Panel(wx.Panel):
         grid2.Add(self.gifright, pos=(2,2))
         self.gifright.Hide()
 
+        mainSizer.Add(grid3, 0, wx.LEFT)
         mainSizer.Add(grid0, 0, wx.CENTER)
         mainSizer.Add(grid, 0, wx.CENTER)
         mainSizer.Add(grid1, 0, wx.CENTER)        
@@ -350,17 +362,25 @@ class MakeCRC_Panel(wx.Panel):
                                     if( Curr_sh.cell(row,COL_BASICPAY).value == Prev_sh.cell(row1,COL_BASICPAY).value):
                                         break;
                                     else:
-                                        Result_Sheet.write(Res_row, 0, Emp_ID);
-                                        Result_Sheet.write(Res_row, 1, 'BASIC PAY is Not Matching with last month sheet');
-                                        Res_row = Res_row + 1;                                        
-                                        self.logger.AppendText(Emp_ID + " BASIC PAY is Not Matching with last month sheet. \n");
-                                        break;
+                                        if ((float(Curr_sh.cell(row,COL_BASICPAY).value) - float(Prev_sh.cell(row1,COL_BASICPAY).value)) >= float(self.diff_Limit.GetValue()))==True:
+                                            Result_Sheet.write(Res_row, 0, Emp_ID);
+                                            Result_Sheet.write(Res_row, 1, 'BASIC PAY is Not Matching with last month sheet');
+                                            Res_row = Res_row + 1;                                        
+                                            self.logger.AppendText(Emp_ID + " BASIC PAY is Not Matching with last month sheet. \n");
+                                            break;
+                                        else:
+                                            self.logger.AppendText(Emp_ID + " BASIC PAY is Not Matching with last month sheet, but EXEMPTED. \n");
+                                            break;
                                 else:
-                                    Result_Sheet.write(Res_row, 0, Emp_ID);
-                                    Result_Sheet.write(Res_row, 1, 'NET PAY is Not Matching with last month sheet');
-                                    Res_row = Res_row + 1;                                    
-                                    self.logger.AppendText(Emp_ID + " NET PAY is Not Matching with last month sheet. \n");
-                                    break;
+                                    if ((float(Curr_sh.cell(row,COL_NETPAY).value) - float(Prev_sh.cell(row1,COL_NETPAY).value)) >= float(self.diff_Limit.GetValue()))==True:
+                                        Result_Sheet.write(Res_row, 0, Emp_ID);
+                                        Result_Sheet.write(Res_row, 1, 'NET PAY is Not Matching with last month sheet');
+                                        Res_row = Res_row + 1;                                    
+                                        self.logger.AppendText(Emp_ID + " NET PAY is Not Matching with last month sheet. \n");
+                                        break;
+                                    else:
+                                        self.logger.AppendText(Emp_ID + " NET PAY is Not Matching with last month sheet, but EXEMPTED \n");
+                                        break;
                             else:
                                 Result_Sheet.write(Res_row, 0, Emp_ID);
                                 Result_Sheet.write(Res_row, 1, 'ACC NO is Not Matching with last month sheet');
