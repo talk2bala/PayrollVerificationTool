@@ -8,7 +8,7 @@ import filecmp
 import zipfile
 import wx.animate
 
-from xlwt import Workbook
+from xlwt import Workbook, XFStyle, Borders, Pattern, Font, easyxf
 
 #*****************************************************************************************************
 #
@@ -134,7 +134,7 @@ class Reviewer(wx.Frame):
     "This is a Main Class to display the window"
 
     def __init__(self):
-        wx.Frame.__init__(self, None, wx.ID_ANY, "Payroll Verification Tool", size=(700,800))
+        wx.Frame.__init__(self, None, wx.ID_ANY, "Payroll Verification Tool", size=(800,700))
         #Creating Objects
         self.MakeCRC_Panel = MakeCRC_Panel(self)
         self.SoftReviewer_Panel = SoftReviewer_Panel(self)
@@ -227,55 +227,60 @@ class MakeCRC_Panel(wx.Panel):
         grid2 = wx.GridBagSizer(hgap=5, vgap=5)
         grid3 = wx.GridBagSizer(hgap=10, vgap=10)
 
-        comp_logo = wx.Image('./res_common/Comp_Logo.JPG', wx.BITMAP_TYPE_ANY)
+        comp_logo = wx.Image('./res_common/Comp_Logo.jpg', wx.BITMAP_TYPE_ANY)
         self.imageLogo = wx.StaticBitmap(self, wx.ID_ANY, wx.BitmapFromImage(comp_logo))
         self.imageLogo.SetBitmap(wx.BitmapFromImage(comp_logo))
         grid3.Add(self.imageLogo, pos=(1,1))
 
-        self.heading = wx.StaticText(self, label="XLS Tool")
+        dev_logo = wx.Image('./res_common/Dev_Info.jpg', wx.BITMAP_TYPE_ANY)
+        self.DevLogo = wx.StaticBitmap(self, wx.ID_ANY, wx.BitmapFromImage(dev_logo))
+        self.DevLogo.SetBitmap(wx.BitmapFromImage(dev_logo))
+        grid3.Add(self.DevLogo, pos=(1,13))
+
+        self.heading = wx.StaticText(self, label="PAYROLL Verification Tool")
         font = wx.Font(22,wx.DEFAULT, wx.NORMAL, wx.NORMAL, True)
         self.heading.SetFont(font)
         grid0.Add(self.heading, pos=(1,0))        
 
         #Adding Combo Box for Port Selection
         self.quote = wx.StaticText(self, label="Select your Previous Month Sheet ")
-        grid.Add(self.quote, pos=(2,0))
+        grid.Add(self.quote, pos=(1,0))
         self.Prev_Month_Sheet = wx.TextCtrl(self, size=(300,20))
-        grid.Add(self.Prev_Month_Sheet, pos=(2,1))
+        grid.Add(self.Prev_Month_Sheet, pos=(1,1))
 
         self.button =wx.Button(self, label="Browse")
         self.Bind(wx.EVT_BUTTON, self.OnBrowse1,self.button)
-        grid.Add(self.button, pos=(2,2))
+        grid.Add(self.button, pos=(1,2))
 
 
         # A button to Edit Local Config file
         self.Current_Month = wx.StaticText(self, label="Select Your Current Month Sheet ")
-        grid.Add(self.Current_Month, pos=(3,0))
+        grid.Add(self.Current_Month, pos=(2,0))
         self.Curr_Month_Sheet = wx.TextCtrl(self, size=(300,20))
-        grid.Add(self.Curr_Month_Sheet, pos=(3,1))
+        grid.Add(self.Curr_Month_Sheet, pos=(2,1))
 
         self.button =wx.Button(self, label="Browse")
         self.Bind(wx.EVT_BUTTON, self.OnBrowse2,self.button)
-        grid.Add(self.button, pos=(3,2))
+        grid.Add(self.button, pos=(2,2))
         
         # Controls to enter Basic/Net different Limit
-        self.diffLimit = wx.StaticText(self, label="Enter Difference Limit in Basic/Net (in Rs) ")
-        grid.Add(self.diffLimit, pos=(4,0))
+        self.diffLimit = wx.StaticText(self, label="Enter Difference Limit in Basic/Net (in + or - Rs) ")
+        grid.Add(self.diffLimit, pos=(3,0))
         self.diff_Limit = wx.TextCtrl(self, size=(100,20))
-        grid.Add(self.diff_Limit, pos=(4,1))
+        grid.Add(self.diff_Limit, pos=(3,1))
 
         # Buttons to Select all/MakeCRC/Exit
         self.clear =wx.Button(self, label="Reset/Clear")
         self.Bind(wx.EVT_BUTTON, self.OnClear,self.clear)
-        grid1.Add(self.clear, pos=(1,0))
+        grid1.Add(self.clear, pos=(1,4))
         
         self.scanthrough =wx.Button(self, label="Scan through...")
         self.Bind(wx.EVT_BUTTON, self.OnScanthrough,self.scanthrough)
-        grid1.Add(self.scanthrough, pos=(1,2))
+        grid1.Add(self.scanthrough, pos=(1,0))
 
         self.MAKECRC =wx.Button(self, label="Generate Payroll Sheet")
         self.Bind(wx.EVT_BUTTON, self.OnGenPayrollSheet,self.MAKECRC)
-        grid1.Add(self.MAKECRC, pos=(1,4))
+        grid1.Add(self.MAKECRC, pos=(1,2))
 
 
         gif_fname = './res_common/Progress.gif'
@@ -285,8 +290,8 @@ class MakeCRC_Panel(wx.Panel):
         self.gifleft.Hide()
 
         # A multiline TextCtrl - This is here to show how the events work in this program, don't pay too much attention to it
-        self.logger = wx.TextCtrl(self, size=(600,300), style=wx.TE_MULTILINE | wx.TE_READONLY)
-        grid2.Add(self.logger, pos=(2,1))
+        self.logger = wx.TextCtrl(self, size=(600,250), style=wx.TE_MULTILINE | wx.TE_READONLY)
+        grid2.Add(self.logger, pos=(1,1))
 
         self.gifright = wx.animate.GIFAnimationCtrl(self, -1, gif_fname)
         self.gifright.GetPlayer().UseBackgroundColour(True)
@@ -304,7 +309,79 @@ class MakeCRC_Panel(wx.Panel):
         "test"
 
     def OnGenPayrollSheet(self, event):
-        "Need to implement"
+        "Generate Final output"
+
+        Final_wb = xlrd.open_workbook(self.path2);
+        Final_sh = Final_wb.sheet_by_index(0);
+
+        Axis_row = 0;
+        Citi_row = 0;
+
+        Axis_book = Workbook();
+        Axis_Sheet = Axis_book.add_sheet('Axis');
+
+        Citi_book = Workbook();
+        Citi_Sheet = Citi_book.add_sheet('Citi');
+
+        Head_Style = easyxf('font: name Calibri, height 160, bold True;' 'borders: left thin, right thin, top thin, bottom thin;')
+        Data_Style = easyxf('font: name Calibri, height 160;' 'borders: left thin, right thin, top thin, bottom thin;')
+        
+        Head_List0 = ['2020(16C)--M','202016C)--M','4038(19D)--M','3380(8C)--M','5756(11C)--M','6021(35C)--M','6091(50C)--M','5569(11C)--M','6061(35C)--M','6081(50C)--M','6305(2D)--M','6310(2D)--M','5629(SMS or EML)','7495(8C)--O','7495(35C)--O'];
+        Head_List1 = ['TRN HEADER A','TRN BODY B','AMOUNT','VALUE DATE','SENDER IFSC','SENDING CUSTOMER A/C NO','SENDING CUSTOMER A/C NAME','BENEFICIARY IFSC','BENEFICIARY A/C NO','BENEFICIARY A/C NAME','Sender Account Type','Receiver Account Type','Senders Mobile No or Email-Id','CODEWORD','ADDITIONAL INFORMATION']; 
+        Head_List2 = ['Debit Account Number','Value Date','Customer Reference No','Beneficiary Name','Payment Type','Bene Account Number','Bank Code','Account type','Amount','Payment Details 1','Payment Details 2','Payment Details 3','Payment Details 4','Blank','Payable Location Name *','Blank','Print Location Name *','Beneficiary Address 1','Beneficiary Address 2','Beneficiary Address 3','Beneficiary Address 4','Delivery Method','Cheque Number','Bene E-mail ID']
+
+        for index in range(15):
+#            Axis_Sheet.col(index).width = 256*(len(Head_List0[index])+5);
+            Axis_Sheet.write(Axis_row,index,Head_List0[index],Head_Style);
+
+        for index in range(24):
+            Citi_Sheet.col(index).width = 256*(len(Head_List2[index])+2);
+            Citi_Sheet.write(Citi_row,index,Head_List2[index],Head_Style);
+
+        Axis_row = Axis_row + 1;
+
+        for index in range(15):
+            Axis_Sheet.col(index).width = 256*(len(Head_List1[index])+2);
+            Axis_Sheet.write(Axis_row,index,Head_List1[index],Head_Style);
+
+
+        self.logger.AppendText( self.path2 + "\n");
+
+        for row in range (Final_sh.nrows):
+            if(row==0 or row==1 or row==2 or row==3 or Final_sh.cell(row,2).value==""):
+                continue;
+
+            if (Final_sh.cell(row,8).value == "Axis") or (Final_sh.cell(row,8).value == "AXIS Bank") or (Final_sh.cell(row,8).value == "axis") == True:
+                Axis_row = Axis_row + 1;
+                Axis_Sheet.write(Axis_row,2,Final_sh.cell(row,12).value,Data_Style);
+                Axis_Sheet.write(Axis_row,4,'UTIB0000785',Data_Style);
+                Axis_Sheet.write(Axis_row,5,'785010200001540',Data_Style);
+                Axis_Sheet.write(Axis_row,6,'MYNTRA DESIGNS PVT LTD',Data_Style);
+                Axis_Sheet.write(Axis_row,7,'UTIB0000785',Data_Style);
+                Axis_Sheet.write(Axis_row,8,Final_sh.cell(row,9).value,Data_Style);
+                Axis_Sheet.write(Axis_row,9,Final_sh.cell(row,2).value,Data_Style);
+                Axis_Sheet.write(Axis_row,10,'11',Data_Style);
+                Axis_Sheet.write(Axis_row,11,'10',Data_Style);
+                Axis_Sheet.write(Axis_row,12,'prbhakar.sunder@myntra.com;kishore.kumar@myntra.com',Data_Style);
+                continue;
+            elif (Final_sh.cell(row,8).value == "Citibank") or (Final_sh.cell(row,8).value == "Citi Bank") or (Final_sh.cell(row,8).value == "Citi") == True:
+                Citi_row = Citi_row + 1;
+                Citi_Sheet.write(Citi_row,0,'344593019',Data_Style);
+                Citi_Sheet.write(Citi_row,3,Final_sh.cell(row,2).value,Data_Style);
+                Citi_Sheet.write(Citi_row,4,'ACTR',Data_Style);
+                Citi_Sheet.write(Citi_row,5,Final_sh.cell(row,9).value,Data_Style);
+                Citi_Sheet.write(Citi_row,7,'2',Data_Style);
+                Citi_Sheet.write(Citi_row,8,Final_sh.cell(row,12).value,Data_Style);
+                continue;
+            else:
+                continue;
+
+#        default_book_style = Axis_book.default_style;
+#        default_book_style.font.height = 20 * 8;
+        Axis_Sheet.row(1).set_style(Head_Style);
+
+        Axis_book.save('Axis.xls');            
+        Citi_book.save('Citi.xls');            
     
     def OnBrowse1(self, event):
         "Edit Local_Config.txt file"
@@ -340,66 +417,98 @@ class MakeCRC_Panel(wx.Panel):
             COL_ACCNO = 9;
             COL_BASICPAY = 14;
             COL_NETPAY = 12;
+
+            Head = easyxf('font: name Calibri, height 160, bold True;' 'borders: left thin, right thin, top thin, bottom thin;')
+            Data = easyxf('font: name Calibri, height 160;' 'borders: left thin, right thin, top thin, bottom thin;')
             
             Result_book = Workbook();
             Result_Sheet = Result_book.add_sheet('Result');
             Res_row = 0;
             Res_col = 0;
-            Result_Sheet.write(Res_row,0,'Emp ID');
-            Result_Sheet.write(Res_row,1,'Remarks');
+            Result_Sheet.write(Res_row,0,'Emp ID',Head);
+            Result_Sheet.write(Res_row,1,'Remarks',Head);
             Res_row = Res_row + 1;
+
+            Result_Sheet.col(0).width = 256*(len('Emp ID')+5);
+            Result_Sheet.col(1).width = 256*(len('Remarks')+30);
             
+            Hash_Tab = {'start':0};
+            for row in range (Prev_sh.nrows):
+                if(row==0 or row==1 or row==2 or row==3 or Prev_sh.cell(row,2).value ==""):
+                    continue;
+                Local = {Prev_sh.cell(row,1).value:row};
+                Hash_Tab.update(Local);
+                print "Row - ",row;
+                print "\n";                
+            print Hash_Tab;
+            print "\n";
+            print "Hash_Tab['M00456']:", Hash_Tab['M00456'];
+
             for row in range (Curr_sh.nrows):
                 if(row==0 or row==1 or row==2 or row==3 or Curr_sh.cell(row,2).value==""):
                     continue;
                 Emp_ID = Curr_sh.cell(row,1).value
-                for row1 in range (Prev_sh.nrows):
+
+                row1 = Hash_Tab.get(Emp_ID,"None");
+
+#                for row1 in range (Prev_sh.nrows):
+                if(row1 != "None"):
                     if(Emp_ID == Prev_sh.cell(row1,1).value):
                         #name check;
                         if( Curr_sh.cell(row,COL_NAME).value == Prev_sh.cell(row1,COL_NAME).value):
-                            if( Curr_sh.cell(row,COL_ACCNO).value == Prev_sh.cell(row1,COL_ACCNO).value):
+                            if( (Curr_sh.cell(row,COL_ACCNO).value == Prev_sh.cell(row1,COL_ACCNO).value) and Curr_sh.cell(row,COL_ACCNO).value != ""):
                                 if( Curr_sh.cell(row,COL_NETPAY).value == Prev_sh.cell(row1,COL_NETPAY).value):
                                     if( Curr_sh.cell(row,COL_BASICPAY).value == Prev_sh.cell(row1,COL_BASICPAY).value):
-                                        break;
+                                        continue;
                                     else:
-                                        if ((float(Curr_sh.cell(row,COL_BASICPAY).value) - float(Prev_sh.cell(row1,COL_BASICPAY).value)) >= float(self.diff_Limit.GetValue()))==True:
-                                            Result_Sheet.write(Res_row, 0, Emp_ID);
-                                            Result_Sheet.write(Res_row, 1, 'BASIC PAY is Not Matching with last month sheet');
+                                        if (((float(Curr_sh.cell(row,COL_BASICPAY).value) - float(Prev_sh.cell(row1,COL_BASICPAY).value)) >= float(self.diff_Limit.GetValue())) or ((float(Prev_sh.cell(row,COL_BASICPAY).value) - float(Curr_sh.cell(row1,COL_BASICPAY).value)) >= float(self.diff_Limit.GetValue())) ) ==True:
+                                            Result_Sheet.write(Res_row, 0, Emp_ID,Data);
+                                            Result_Sheet.write(Res_row, 1, 'BASIC PAY is Not Matching with last month sheet',Data);
                                             Res_row = Res_row + 1;                                        
                                             self.logger.AppendText(Emp_ID + " BASIC PAY is Not Matching with last month sheet. \n");
-                                            break;
                                         else:
                                             self.logger.AppendText(Emp_ID + " BASIC PAY is Not Matching with last month sheet, but EXEMPTED. \n");
-                                            break;
+                                        continue;
                                 else:
-                                    if ((float(Curr_sh.cell(row,COL_NETPAY).value) - float(Prev_sh.cell(row1,COL_NETPAY).value)) >= float(self.diff_Limit.GetValue()))==True:
-                                        Result_Sheet.write(Res_row, 0, Emp_ID);
-                                        Result_Sheet.write(Res_row, 1, 'NET PAY is Not Matching with last month sheet');
+                                    diff_amount = float(self.diff_Limit.GetValue());
+                                    curr_vs_prev = float(Curr_sh.cell(row,COL_NETPAY).value) - float(Prev_sh.cell(row1,COL_NETPAY).value);
+                                    prev_vs_curr = float(Prev_sh.cell(row1,COL_NETPAY).value) - float(Curr_sh.cell(row,COL_NETPAY).value);
+
+                                    if (curr_vs_prev >= diff_amount or prev_vs_curr >= diff_amount):
+                                        Result_Sheet.write(Res_row, 0, Emp_ID,Data);
+                                        Result_Sheet.write(Res_row, 1, 'NET PAY is Not Matching with last month sheet',Data);
                                         Res_row = Res_row + 1;                                    
                                         self.logger.AppendText(Emp_ID + " NET PAY is Not Matching with last month sheet. \n");
-                                        break;
                                     else:
                                         self.logger.AppendText(Emp_ID + " NET PAY is Not Matching with last month sheet, but EXEMPTED \n");
-                                        break;
+                                    continue;
                             else:
-                                Result_Sheet.write(Res_row, 0, Emp_ID);
-                                Result_Sheet.write(Res_row, 1, 'ACC NO is Not Matching with last month sheet');
-                                Res_row = Res_row + 1;                                
-                                self.logger.AppendText(Emp_ID + " ACC NO is Not Matching with last month sheet. \n");
-                                break;
+                                if(Curr_sh.cell(row,COL_ACCNO).value == ""):
+                                    Result_Sheet.write(Res_row, 0, Emp_ID,Data);
+                                    Result_Sheet.write(Res_row, 1, 'ACC NO is Empty',Data);
+                                    Res_row = Res_row + 1;                                
+                                    self.logger.AppendText(Emp_ID + " ACC NO is EMPTY. \n");
+                                else:
+                                    Result_Sheet.write(Res_row, 0, Emp_ID,Data);
+                                    Result_Sheet.write(Res_row, 1, 'ACC NO is Not Matching with last month sheet',Data);
+                                    Res_row = Res_row + 1;                                
+                                    self.logger.AppendText(Emp_ID + " ACC NO is Not Matching with last month sheet. \n");
+                                continue;
                         else:    
-                            Result_Sheet.write(Res_row, 0, Emp_ID);
-                            Result_Sheet.write(Res_row, 1, 'NAME is Not Matching with last month sheet');
+                            Result_Sheet.write(Res_row, 0, Emp_ID,Data);
+                            Result_Sheet.write(Res_row, 1, 'NAME is Not Matching with last month sheet',Data);
                             Res_row = Res_row + 1;                       
                             self.logger.AppendText(Emp_ID + " NAME is Not Matching with last month sheet. \n");
-                            break;
-                    else:
-                        if(row1 >= Prev_sh.nrows):
-                            self.logger.AppendText(Emp_ID + " Seems to be New Employee \n");
-                            break;
-                        else:
                             continue;
-                        
+                    else:
+                        self.logger.AppendText(Emp_ID + " Seems to be Some problem in the Hash Table Mapping and Excel Sheet mapping. Contact Developer of this program. \n");
+                        break;
+                else:
+                    Result_Sheet.write(Res_row, 0, Emp_ID,Data);
+                    Result_Sheet.write(Res_row, 1, 'Seems to be New Employee',Data);
+                    Res_row = Res_row + 1;                                
+                    self.logger.AppendText(Emp_ID + " Seems to be New Employee \n");
+
             Result_book.save('Results.xls');            
             self.logger.AppendText("DONE \n");
         else:
@@ -410,6 +519,14 @@ class MakeCRC_Panel(wx.Panel):
         self.logger.Clear();
         self.Prev_Month_Sheet.Clear();
         self.Curr_Month_Sheet.Clear();
+        if is_SystemFilesPresent('./',"Results.xls") == True:
+            os.remove("Results.xls")
+        if is_SystemFilesPresent('./',"Citi.xls") == True:
+            os.remove("Citi.xls")
+        if is_SystemFilesPresent('./',"Axis.xls") == True:
+            os.remove("Axis.xls")
+
+        self.logger.AppendText("All Old generated files have been cleared sucessfully. \n")
 
 #*****************************************************************************************************
 #
